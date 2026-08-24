@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "v1",
+  "documentStatus": "NOT_A_RECEIPT",
+  "merchantName": { "status": "invalid", "rawDescription": "CUPOM FISCAL ILEGIVEL" },
+  "purchasedAt": { "status": "missing" },
+  "total": { "status": "missing" },
+  "items": []
+}

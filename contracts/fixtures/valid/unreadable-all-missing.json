@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "v1",
+  "documentStatus": "UNREADABLE",
+  "merchantName": { "status": "missing" },
+  "purchasedAt": { "status": "missing" },
+  "total": { "status": "missing" },
+  "items": []
+}

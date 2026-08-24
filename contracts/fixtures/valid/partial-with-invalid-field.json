@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "v1",
+  "documentStatus": "PARTIAL",
+  "merchantName": { "status": "present", "value": "Padaria Sao Jose", "confidence": "MEDIUM" },
+  "purchasedAt": { "status": "missing" },
+  "total": { "status": "invalid", "rawDescription": "R$ --,--" },
+  "items": [
+    {
+      "description": { "status": "present", "value": "PAO FRANCES KG", "confidence": "MEDIUM" },
+      "quantity": { "status": "invalid", "rawDescription": "qtd?" },
+      "unit": { "status": "present", "value": "KG", "confidence": "LOW" },
+      "unitPrice": { "status": "present", "value": 1290, "confidence": "MEDIUM" },
+      "totalPrice": { "status": "missing" }
+    }
+  ]
+}

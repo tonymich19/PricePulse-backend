@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pricepulse-backend/contracts/receipt-analysis-result.v1.schema.json",
+  "title": "ReceiptAnalysisResult",
+  "description": "Wire representation of the Android domain type com.tonycorreia.pricepulse.domain.receiptanalysis.ReceiptAnalysis, version v1. Represents only the semantic analysis result -- never a transport error, credit/idempotency state, or UI issue/disposition.",
+  "type": "object",
+  "required": ["schemaVersion", "documentStatus", "merchantName", "purchasedAt", "total", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "v1"
+    },
+    "documentStatus": {
+      "description": "Mirrors ReceiptDocumentStatus.kt exactly -- 4 literals, no fallback/unknown value.",
+      "enum": ["COMPLETE", "PARTIAL", "UNREADABLE", "NOT_A_RECEIPT"]
+    },
+    "merchantName": { "$ref": "#/$defs/textField" },
+    "purchasedAt": { "$ref": "#/$defs/instantField" },
+    "total": { "$ref": "#/$defs/moneyField" },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/item" }
+    }
+  },
+  "$defs": {
+    "confidence": {
+      "description": "Mirrors FieldConfidence.kt exactly -- 4 literals.",
+      "enum": ["HIGH", "MEDIUM", "LOW", "UNKNOWN"]
+    },
+    "item": {
+      "description": "Mirrors ReceiptAnalysisItem.kt -- all 5 fields required in the envelope (each may itself be the missing variant).",
+      "type": "object",
+      "required": ["description", "quantity", "unit", "unitPrice", "totalPrice"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "$ref": "#/$defs/textField" },
+        "quantity": { "$ref": "#/$defs/quantityField" },
+        "unit": { "$ref": "#/$defs/textField" },
+        "unitPrice": { "$ref": "#/$defs/moneyField" },
+        "totalPrice": { "$ref": "#/$defs/moneyField" }
+      }
+    },
+    "textField": {
+      "description": "Wire form of ReceiptField<String> (merchantName, description, unit). Mirrors ReceiptField.kt: Present(value non-blank, confidence) | Invalid(rawDescription) | Missing.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["status", "value", "confidence"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "present" },
+            "value": { "type": "string", "minLength": 1 },
+            "confidence": { "$ref": "#/$defs/confidence" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["status", "rawDescription"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "invalid" },
+            "rawDescription": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["status"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "missing" }
+          }
+        }
+      ]
+    },
+    "instantField": {
+      "description": "Wire form of ReceiptField<Instant> (purchasedAt). value is ISO-8601 UTC, never a numeric timestamp.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["status", "value", "confidence"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "present" },
+            "value": { "type": "string", "format": "date-time" },
+            "confidence": { "$ref": "#/$defs/confidence" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["status", "rawDescription"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "invalid" },
+            "rawDescription": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["status"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "missing" }
+          }
+        }
+      ]
+    },
+    "moneyField": {
+      "description": "Wire form of ReceiptField<Money> (total, unitPrice, totalPrice). value is Money.amountMinor -- integer minor units, never negative (Money.kt requires amountMinor >= 0). Never a floating point number.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["status", "value", "confidence"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "present" },
+            "value": { "type": "integer", "minimum": 0 },
+            "confidence": { "$ref": "#/$defs/confidence" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["status", "rawDescription"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "invalid" },
+            "rawDescription": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["status"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "missing" }
+          }
+        }
+      ]
+    },
+    "quantityField": {
+      "description": "Wire form of ReceiptField<BigDecimal> (quantity). value is a canonical decimal string, strictly positive (ReceiptField.decimalQuantity requires value > BigDecimal.ZERO). Never a JSON number -- floating point would lose precision.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["status", "value", "confidence"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "present" },
+            "value": {
+              "type": "string",
+              "pattern": "^(?!0(\\.0+)?$)[0-9]+(\\.[0-9]+)?$"
+            },
+            "confidence": { "$ref": "#/$defs/confidence" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["status", "rawDescription"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "invalid" },
+            "rawDescription": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["status"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "missing" }
+          }
+        }
+      ]
+    }
+  }
+}

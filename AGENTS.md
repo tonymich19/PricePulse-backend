@@ -31,3 +31,7 @@ make a commit/push unless the user has explicitly asked.
 For cross-repository work, the shared artifacts live under the sibling app's
 `docs/product-development/` directory. A draft specification or plan is never
 permission to implement backend code.
+
+When work may complete a milestone in the shared roadmap, use
+`pricepulse-milestone-gate`. Do not mark the milestone complete or start the
+next one until the product owner explicitly approves the evidence.

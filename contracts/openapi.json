@@ -1,0 +1,1000 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PricePulse Receipt Analysis API",
+    "version": "v1",
+    "description": "HTTP surface of the PricePulse backend: submit a receipt image for analysis and poll its result.\n\n**Envelope.** Every JSON body carries `envelopeVersion: \"v1\"`. Success bodies carry `status`; failure bodies carry `error`. A body carries `requestId` if and only if the key has already passed edge validation at the point the answer is produced, which is why `UNAUTHORIZED`, `INVALID_REQUEST_ID` and the GET's `RATE_LIMITED` do not have it.\n\n**Idempotency.** `POST` is keyed by `(authenticated user, Idempotency-Key)`. Repeating the call with the same key and the same image bytes returns the current state of the same operation; the same key with different bytes is `409 REQUEST_ID_CONFLICT`.\n\n**The two endpoints differ on status codes, on purpose.** `POST` answers `202` while the operation is still open and `200` once it has reached a terminal state; `GET` answers `200` for any operation it finds, terminal or not.\n\nWritten from the route code (`StartReceiptAnalysisRoute`, `ReceiptAnalysisStatusRoute`) and the two response builders. The `document` schema is embedded from `contracts/receipt-analysis-result.v1.schema.json`, which remains the source of truth: regenerate this file when that one changes."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local run"
+    },
+    {
+      "url": "https://{host}",
+      "description": "Deployed instance",
+      "variables": {
+        "host": {
+          "default": "pricepulse-backend.up.railway.app",
+          "description": "Deployment host. Replace with the real one."
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Receipt analyses",
+      "description": "Submit and poll receipt analysis operations."
+    },
+    {
+      "name": "Operations",
+      "description": "Process-level endpoints."
+    }
+  ],
+  "paths": {
+    "/v1/receipt-analyses": {
+      "post": {
+        "tags": [
+          "Receipt analyses"
+        ],
+        "summary": "Submit a receipt image for analysis",
+        "operationId": "startReceiptAnalysis",
+        "description": "Admission runs in a fixed order: authenticate, validate the key, advisory lookup plus layer 1, read and validate the upload, layer 2, then exactly one invocation of the use case.\n\n**Upload limits.** Exactly one part, named `image`, carrying a filename and a declared `Content-Type` of `image/jpeg` or `image/png`. The image part may not exceed 5,242,880 bytes; the whole multipart envelope may not exceed 5,505,024 bytes; header dimensions may not exceed 6000x6000. A declared `Content-Length` may only reject a request early. It never authorises acceptance, which is always decided by counting real bytes.\n\n**Validation order within the upload** is structure, declared MIME, image size, envelope size, dimensions, then integrity, and the first failure wins. Integrity is structural: PNG is checked chunk by chunk with CRC-32, JPEG structurally only, so a structurally valid JPEG whose entropy data is corrupted is accepted.\n\n**Rate limits.** 10 requests per minute in a fixed 60-second window: per `(user, key)` when the operation probably already exists, and per user when it is probably new.",
+        "security": [
+          {
+            "firebaseIdToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Client-generated key, at most 128 characters of `[A-Za-z0-9_-]`. Validated at the edge before any store or limiter is touched.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "example": "b3f1c2a4-7e9d-4a10-9c33-0f5d6e7a8b91"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "image"
+                ],
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The receipt image. Must be a file part -- a filename parameter is what makes it one -- named exactly `image`."
+                  }
+                }
+              },
+              "encoding": {
+                "image": {
+                  "contentType": "image/jpeg, image/png"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The operation has reached a terminal state: SUCCEEDED, FAILED or FAILED_NO_PROVIDER.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisEnvelope"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted, and still open: RECEIVED, PROCESSING or RECONCILING. Poll the GET endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Either the Idempotency-Key failed validation (`INVALID_REQUEST_ID`, no requestId in the body) or the upload was malformed (`MALFORMED_UPLOAD`, with requestId).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestIdError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/UploadRejectedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, or rejected bearer token. Indistinguishable across all failure modes by design.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "Always the literal `Bearer`.",
+                "schema": {
+                  "type": "string",
+                  "const": "Bearer"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "No grant had spare credit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsufficientCreditsError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The key already exists for this user with different image bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The operation was tombstoned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoneError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "`IMAGE_TOO_LARGE`, `REQUEST_TOO_LARGE`, or `IMAGE_DIMENSIONS_TOO_LARGE`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRejectedError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "`UNSUPPORTED_MEDIA_TYPE` (declared type outside the accepted set) or `MEDIA_TYPE_MISMATCH` (real signature contradicts the declared type, or the file is not intact).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRejectedError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An admission layer limited the request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds left in the current window; equals the body's `retryAfter`.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Ingestion or the use case failed unexpectedly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/receipt-analyses/{requestId}": {
+      "get": {
+        "tags": [
+          "Receipt analyses"
+        ],
+        "summary": "Read the state of a receipt analysis",
+        "operationId": "getReceiptAnalysis",
+        "description": "Read-only: the single store call is a lookup. Order is authenticate, apply the per-user limit, validate the path, then read, so an unauthenticated caller reaches neither the limiter nor the store.\n\nThe operation is keyed by `(authenticated user, requestId)`, and the user always comes from the verified token, never from the path: another user's key answers `404`, exactly like one that never existed.\n\n**Rate limit.** 30 requests per minute per user, in a fixed 60-second window.",
+        "security": [
+          {
+            "firebaseIdToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "description": "The same value sent as `Idempotency-Key` on the POST.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The operation was found. This is `200` for any lifecycle, including the non-terminal ones -- unlike the POST, which answers `202` for those.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The path value failed edge validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestIdError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, malformed, or rejected bearer token. Indistinguishable across all failure modes by design.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            },
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "Always the literal `Bearer`.",
+                "schema": {
+                  "type": "string",
+                  "const": "Bearer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such operation for this user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The operation was tombstoned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoneError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The per-user polling limit fired. Answered before the path is validated, so the body carries no requestId.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedErrorWithoutRequestId"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds left in the current window; equals the body's `retryAfter`.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The store failed unexpectedly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Liveness probe",
+        "operationId": "health",
+        "description": "Unauthenticated. Answers `200` with the literal body `OK` as plain text. It does not check the database or any downstream dependency.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The process is up.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "const": "OK"
+                },
+                "example": "OK"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "firebaseIdToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "A Firebase ID token. The scheme name is matched case-insensitively and must be followed by exactly one space and a non-blank token."
+      }
+    },
+    "schemas": {
+      "AnalysisEnvelope": {
+        "type": "object",
+        "description": "The single success envelope, built by ReceiptAnalysisStatusResponses.found and shared by both endpoints. `document` is present if and only if status is SUCCEEDED; `reason` if and only if status is FAILED_NO_PROVIDER. FAILED deliberately carries no reason: the domain has exactly one cause for it.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "requestId",
+          "status"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RECEIVED",
+              "PROCESSING",
+              "RECONCILING",
+              "SUCCEEDED",
+              "FAILED",
+              "FAILED_NO_PROVIDER"
+            ]
+          },
+          "document": {
+            "$ref": "#/components/schemas/ReceiptAnalysisResultV1",
+            "description": "Only when status is SUCCEEDED."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Only when status is FAILED_NO_PROVIDER.",
+            "enum": [
+              "REQUEST_CONSTRUCTION_FAILED",
+              "PROVIDER_CREDENTIAL_UNAVAILABLE",
+              "MALFORMED_REQUEST",
+              "AUTHENTICATION_REJECTED",
+              "ACCESS_FORBIDDEN",
+              "RETRY_EXHAUSTED",
+              "BILLING_OR_QUOTA_EXHAUSTED",
+              "UNRECOGNIZED_RESPONSE",
+              "RESPONSE_FAILED",
+              "RESPONSE_CANCELLED",
+              "RATE_LIMITED",
+              "TRANSIENT_PROVIDER_FAILURE"
+            ]
+          }
+        }
+      },
+      "UnauthorizedError": {
+        "type": "object",
+        "description": "Byte-for-byte identical across all six authentication failure modes; carries no requestId, because it is answered before the key is validated.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "error"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "UNAUTHORIZED"
+            ]
+          }
+        }
+      },
+      "InvalidRequestIdError": {
+        "type": "object",
+        "description": "Answered during key validation, so it carries no requestId.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "error"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "INVALID_REQUEST_ID"
+            ]
+          }
+        }
+      },
+      "NotFoundError": {
+        "type": "object",
+        "description": "A requestId belonging to another user is indistinguishable from one that never existed.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "requestId",
+          "error"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "NOT_FOUND"
+            ]
+          }
+        }
+      },
+      "GoneError": {
+        "type": "object",
+        "description": "The operation was tombstoned.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "requestId",
+          "error"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "GONE"
+            ]
+          }
+        }
+      },
+      "ConflictError": {
+        "type": "object",
+        "description": "The key already exists for this user with different image bytes.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "requestId",
+          "error"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "REQUEST_ID_CONFLICT"
+            ]
+          }
+        }
+      },
+      "InsufficientCreditsError": {
+        "type": "object",
+        "description": "No grant had spare credit.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "requestId",
+          "error"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "INSUFFICIENT_CREDITS"
+            ]
+          }
+        }
+      },
+      "InternalError": {
+        "type": "object",
+        "description": "The controlled answer to an unexpected store or use-case failure. The body never carries the underlying driver message.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "requestId",
+          "error"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "INTERNAL_ERROR"
+            ]
+          }
+        }
+      },
+      "UploadRejectedError": {
+        "type": "object",
+        "description": "One body per rejection constant, written literally on the wire so a rename of the Kotlin enum cannot silently change what clients receive.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "requestId",
+          "error"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "MALFORMED_UPLOAD",
+              "UNSUPPORTED_MEDIA_TYPE",
+              "IMAGE_TOO_LARGE",
+              "REQUEST_TOO_LARGE",
+              "IMAGE_DIMENSIONS_TOO_LARGE",
+              "MEDIA_TYPE_MISMATCH"
+            ]
+          }
+        }
+      },
+      "RateLimitedError": {
+        "type": "object",
+        "description": "POST: both admission layers fire after the Idempotency-Key has been validated, so the body carries the requestId.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "requestId",
+          "error",
+          "retryAfter"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "RATE_LIMITED"
+            ]
+          },
+          "retryAfter": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60,
+            "description": "Seconds left in the current fixed window. Mirrors the Retry-After header exactly: both come from one captured decision, never a second clock read."
+          }
+        }
+      },
+      "RateLimitedErrorWithoutRequestId": {
+        "type": "object",
+        "description": "GET: the per-user layer fires before the path is validated, so no requestId is available to report.",
+        "additionalProperties": false,
+        "required": [
+          "envelopeVersion",
+          "error",
+          "retryAfter"
+        ],
+        "properties": {
+          "envelopeVersion": {
+            "type": "string",
+            "const": "v1"
+          },
+          "error": {
+            "type": "string",
+            "enum": [
+              "RATE_LIMITED"
+            ]
+          },
+          "retryAfter": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60,
+            "description": "Seconds left in the current fixed window. Mirrors the Retry-After header exactly: both come from one captured decision, never a second clock read."
+          }
+        }
+      },
+      "ReceiptAnalysisResultV1": {
+        "title": "ReceiptAnalysisResult",
+        "description": "Wire representation of the Android domain type com.tonycorreia.pricepulse.domain.receiptanalysis.ReceiptAnalysis, version v1. Represents only the semantic analysis result -- never a transport error, credit/idempotency state, or UI issue/disposition.",
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "documentStatus",
+          "merchantName",
+          "purchasedAt",
+          "total",
+          "items"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "const": "v1"
+          },
+          "documentStatus": {
+            "description": "Mirrors ReceiptDocumentStatus.kt exactly -- 4 literals, no fallback/unknown value.",
+            "enum": [
+              "COMPLETE",
+              "PARTIAL",
+              "UNREADABLE",
+              "NOT_A_RECEIPT"
+            ]
+          },
+          "merchantName": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "purchasedAt": {
+            "$ref": "#/components/schemas/InstantField"
+          },
+          "total": {
+            "$ref": "#/components/schemas/MoneyField"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceiptAnalysisItem"
+            }
+          }
+        }
+      },
+      "FieldConfidence": {
+        "description": "Mirrors FieldConfidence.kt exactly -- 4 literals.",
+        "enum": [
+          "HIGH",
+          "MEDIUM",
+          "LOW",
+          "UNKNOWN"
+        ]
+      },
+      "ReceiptAnalysisItem": {
+        "description": "Mirrors ReceiptAnalysisItem.kt -- all 5 fields required in the envelope (each may itself be the missing variant).",
+        "type": "object",
+        "required": [
+          "description",
+          "quantity",
+          "unit",
+          "unitPrice",
+          "totalPrice"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "quantity": {
+            "$ref": "#/components/schemas/QuantityField"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/TextField"
+          },
+          "unitPrice": {
+            "$ref": "#/components/schemas/MoneyField"
+          },
+          "totalPrice": {
+            "$ref": "#/components/schemas/MoneyField"
+          }
+        }
+      },
+      "TextField": {
+        "description": "Wire form of ReceiptField<String> (merchantName, description, unit). Mirrors ReceiptField.kt: Present(value non-blank, confidence) | Invalid(rawDescription) | Missing.",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "value",
+              "confidence"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "present"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "confidence": {
+                "$ref": "#/components/schemas/FieldConfidence"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "rawDescription"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "invalid"
+              },
+              "rawDescription": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "missing"
+              }
+            }
+          }
+        ]
+      },
+      "InstantField": {
+        "description": "Wire form of ReceiptField<Instant> (purchasedAt). value is ISO-8601 UTC, never a numeric timestamp.",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "value",
+              "confidence"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "present"
+              },
+              "value": {
+                "type": "string",
+                "format": "date-time",
+                "description": "RFC 3339 date-time restricted to UTC -- must end in 'Z', never a numeric offset like +02:00.",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+              },
+              "confidence": {
+                "$ref": "#/components/schemas/FieldConfidence"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "rawDescription"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "invalid"
+              },
+              "rawDescription": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "missing"
+              }
+            }
+          }
+        ]
+      },
+      "MoneyField": {
+        "description": "Wire form of ReceiptField<Money> (total, unitPrice, totalPrice). value is Money.amountMinor -- integer minor units, never negative (Money.kt requires amountMinor >= 0). Never a floating point number.",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "value",
+              "confidence"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "present"
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "confidence": {
+                "$ref": "#/components/schemas/FieldConfidence"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "rawDescription"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "invalid"
+              },
+              "rawDescription": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "missing"
+              }
+            }
+          }
+        ]
+      },
+      "QuantityField": {
+        "description": "Wire form of ReceiptField<BigDecimal> (quantity). value is a canonical decimal string, strictly positive (ReceiptField.decimalQuantity requires value > BigDecimal.ZERO). Never a JSON number -- floating point would lose precision.",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "value",
+              "confidence"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "present"
+              },
+              "value": {
+                "type": "string",
+                "description": "Canonical positive decimal: no sign, no exponent, no leading zeros in the integer part (except a lone '0' before a fractional part), and never a representation whose value is zero.",
+                "pattern": "^(?!0(\\.0+)?$)(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+              },
+              "confidence": {
+                "$ref": "#/components/schemas/FieldConfidence"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "rawDescription"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "invalid"
+              },
+              "rawDescription": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "const": "missing"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

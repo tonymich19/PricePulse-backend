@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "v1",
+  "documentStatus": "COMPLETE",
+  "merchantName": { "status": "present", "value": "Mercado Bom Preco", "confidence": "HIGH" },
+  "purchasedAt": { "status": "present", "value": "2026-07-20T12:00:00+02:00", "confidence": "HIGH" },
+  "total": { "status": "present", "value": 2599, "confidence": "HIGH" },
+  "items": []
+}

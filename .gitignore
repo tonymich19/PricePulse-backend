@@ -6,4 +6,5 @@ out/
 .DS_Store
 local.properties
 .env
+secrets/
 *.log

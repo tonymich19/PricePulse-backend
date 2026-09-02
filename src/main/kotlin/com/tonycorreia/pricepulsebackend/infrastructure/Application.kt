@@ -13,6 +13,7 @@ import com.tonycorreia.pricepulsebackend.infrastructure.openai.OpenAiInvocationT
 import com.tonycorreia.pricepulsebackend.infrastructure.openai.OpenAiReceiptAnalysisProviderAdapter
 import com.tonycorreia.pricepulsebackend.infrastructure.openai.OpenAiReceiptAnalysisRequestConfig
 import com.tonycorreia.pricepulsebackend.infrastructure.openai.OpenAiResponsesRequestFactory
+import com.tonycorreia.pricepulsebackend.infrastructure.openai.ReceiptExtractionInstructions
 import com.tonycorreia.pricepulsebackend.application.receiptanalysis.ProviderInvocationFailureObserver
 import com.tonycorreia.pricepulsebackend.application.receiptanalysis.orchestration.ReceiptAnalysisOperationStore
 import com.tonycorreia.pricepulsebackend.application.receiptanalysis.orchestration.StartReceiptAnalysisUseCase
@@ -72,29 +73,6 @@ private const val OPENAI_BODY_LIMIT_BYTES = 1_048_576L
 private const val RECONCILIATION_INTERVAL_SECONDS = 60L
 private const val RECONCILIATION_EXPIRY_HOURS = 6L
 private const val RECONCILIATION_BATCH_LIMIT = 50
-
-private val OPENAI_EXTRACTION_INSTRUCTIONS = """
-    Você é um assistente que extrai dados estruturados de imagens de notas fiscais/recibos de
-    compra. Analise a imagem fornecida e devolva exatamente os campos do schema fornecido,
-    seguindo estas regras:
-
-    1. documentStatus: classifique como COMPLETE se a imagem é claramente um recibo/nota fiscal
-       legível com os campos principais visíveis; PARTIAL se é um recibo mas alguns campos estão
-       ilegíveis ou ausentes; UNREADABLE se a imagem é muito borrada, escura, ou cortada para ler
-       com confiança; NOT_A_RECEIPT se a imagem claramente não é um recibo de compra.
-    2. Para merchantName, purchasedAt, total, e cada item (description, quantity, unit, unitPrice,
-       totalPrice): se o valor está visível e legível, devolva status "present" com o valor e um
-       nível de confiança (HIGH/MEDIUM/LOW); se o valor aparece na imagem mas não pôde ser
-       interpretado com confiança, devolva status "invalid" com uma breve descrição textual do que
-       foi visto; se o campo simplesmente não aparece na imagem, devolva status "missing".
-    3. purchasedAt deve ser convertido para UTC no formato ISO-8601 terminando em "Z", nunca um
-       deslocamento numérico.
-    4. total e cada unitPrice/totalPrice devem ser valores monetários em unidades menores
-       (centavos), nunca números decimais ou de ponto flutuante.
-    5. quantity deve ser um valor decimal estritamente positivo.
-    6. Nunca invente valores que não estão visíveis na imagem -- prefira "missing"/"invalid" a
-       uma suposição.
-""".trimIndent()
 
 fun main() {
     val port = resolvePort(System.getenv(PORT_ENV_VAR))
@@ -282,7 +260,7 @@ internal fun productionFailureObserver(): ProviderInvocationFailureObserver =
 private fun productionRequestConfig(): OpenAiReceiptAnalysisRequestConfig =
     OpenAiReceiptAnalysisRequestConfig(
         model = OPENAI_MODEL,
-        extractionInstructions = OPENAI_EXTRACTION_INSTRUCTIONS,
+        extractionInstructions = ReceiptExtractionInstructions.TEXT,
         schemaName = OPENAI_SCHEMA_NAME,
         imageDetail = OPENAI_IMAGE_DETAIL,
         maxOutputTokens = OPENAI_MAX_OUTPUT_TOKENS,

@@ -5,6 +5,11 @@ Before planning or changing anything, read this file, `README.md`, the relevant
 versioned contract in `contracts/`, and — when the sibling app checkout is
 available — `../PricePulse/docs/product-development/README.md`.
 
+Before finalizing a non-trivial code plan, use `pricepulse-assumption-audit`.
+When work may complete a milestone in the sibling app's
+`docs/product-development/roadmap.md`, use `pricepulse-milestone-gate` before
+planning or starting the next milestone.
+
 ## Decision hierarchy
 
 Use this order whenever instructions or processes overlap:

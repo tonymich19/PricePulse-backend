@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The FIRST logback.xml of this backend, so adding it is a GLOBAL configuration change, not a
+  telemetry addition: its presence switches off Logback's fallback BasicConfigurator entirely.
+  The root must therefore be declared here, or Ktor, Flyway and the JDBC driver would stop logging.
+
+  The root deliberately uses TTLLLayout, the very class BasicConfigurator instantiates in Logback
+  1.5.12, instead of a hand-written pattern. Current behaviour is preserved by DELEGATION rather
+  than reproduction: full logger name and throwable rendering come from the same object, not from a
+  pattern someone has to keep equivalent. An earlier proposal used a manual pattern and silently
+  dropped stack traces; LogbackConfigurationTest now asserts this layout to stop that recurring.
+-->
+<configuration>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="ch.qos.logback.classic.layout.TTLLLayout"/>
+        </encoder>
+    </appender>
+
+    <!-- Message only: the physical line IS the JSON object, with no timestamp, thread, level or
+         logger prefix, so it can be parsed without stripping anything first. -->
+    <appender name="TELEMETRY" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- additivity=false: the event reaches TELEMETRY and never rises to the root, so it is neither
+         duplicated nor reprinted with the human layout. -->
+    <logger name="pricepulse.telemetry.openai" level="INFO" additivity="false">
+        <appender-ref ref="TELEMETRY"/>
+    </logger>
+
+    <!-- DEBUG is the level LoggerContext already applies to the root today; declaring it keeps the
+         effective behaviour unchanged. Moving it is a separate operational decision. -->
+    <root level="DEBUG">
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+</configuration>

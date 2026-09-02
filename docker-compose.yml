@@ -1,0 +1,49 @@
+name: pricepulse-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pricepulse
+      POSTGRES_USER: pricepulse
+      POSTGRES_PASSWORD: pricepulse_dev_only
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pricepulse -d pricepulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "jdbc:postgresql://postgres:5432/pricepulse?user=pricepulse&password=pricepulse_dev_only"
+      MONTHLY_FREE_CREDITS: "${MONTHLY_FREE_CREDITS:-5}"
+      OPENAI_API_KEY_FILE: /run/secrets/openai-api-key
+      FIREBASE_SERVICE_ACCOUNT_FILE: /run/secrets/firebase-service-account.json
+    ports:
+      - "8080:8080"
+    secrets:
+      - source: openai_api_key
+        target: openai-api-key
+      - source: firebase_service_account
+        target: firebase-service-account.json
+
+secrets:
+  openai_api_key:
+    file: ./secrets/openai-api-key
+  firebase_service_account:
+    file: ./secrets/firebase-service-account.json
+
+volumes:
+  postgres_data:

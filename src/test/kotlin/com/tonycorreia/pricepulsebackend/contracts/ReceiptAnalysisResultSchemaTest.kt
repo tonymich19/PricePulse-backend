@@ -69,5 +69,14 @@ class ReceiptAnalysisResultSchemaTest {
         assertTrue("negative-money" in names)
         assertTrue("non-positive-quantity" in names)
         assertTrue("malformed-quantity" in names)
+        // Added this round: ReceiptField.Present<String> requires isNotBlank() in the Android
+        // domain -- a whitespace-only value must be rejected, not just an empty one.
+        assertTrue("blank-text" in names)
+        // Added this round: the previous quantity pattern let non-canonical all-zero spellings
+        // like "000.000" through, even though they convert to BigDecimal.ZERO and are forbidden.
+        assertTrue("non-canonical-zero-quantity" in names)
+        // Added this round: format:date-time alone accepts any RFC 3339 offset; the domain
+        // contract requires UTC specifically, so a non-Z offset must be rejected.
+        assertTrue("non-utc-instant" in names)
     }
 }

@@ -52,11 +52,16 @@ assumes any of it exists:
 - `Merchant`, `Store` and `PriceRegion`;
 - `UserTrackedProduct`.
 
-**Implementation is gated by the M4 milestone gate** in
-`../PricePulse/docs/product-development/roadmap.md`. No slice of this capability
-may begin until the product owner closes Milestone 4 through
-`pricepulse-milestone-gate`. An approved ADR or specification is not permission to
-implement.
+**The M4 milestone gate is satisfied:** the product owner closed Milestone 4 on
+2026-09-17 (`M4_GATE_PASS`), recorded in
+`../PricePulse/docs/product-development/roadmap.md`. **M5 implementation has not
+started** — no slice (S1, S1a, S1b or later) has begun. The capability stays gated
+slice by slice: each slice needs an audited detailed plan, its execution
+preconditions and an explicit authorization from the product owner. An approved
+ADR, specification or delivery sequence is not permission to implement. For S1a
+(`docs/superpowers/plans/2026-09-16-s1-market-text-identity.md`), one precondition
+is that the M4 closing documentation and the M5 design are present in the app
+repository's `origin/main`.
 
 Every price source investigated so far remains `COMMERCIAL_USE_NOT_VALIDATED`. A
 source in that state may never serve production data; commercial status is a

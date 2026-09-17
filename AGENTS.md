@@ -20,7 +20,9 @@ calls and the versioned HTTP contract. The app owns user experience, local domai
 and review. Keep all provider credentials and provider-specific types server-side.
 
 A Price Intelligence capability was approved at GATE 1 on 2026-09-16 but is **not
-implemented** and its implementation is gated by the M4 milestone gate. See
+implemented**. The M4 milestone gate was satisfied on 2026-09-17 (`M4_GATE_PASS`);
+M5 implementation has **not started**, and each slice still needs an audited plan,
+its execution preconditions and explicit product-owner authorization. See
 `CLAUDE.md`, section "Backend ownership", for the split between implemented and
 approved-but-gated capabilities before assuming anything exists.
 Do not change the OpenAPI/schema files without an approved behavior decision and

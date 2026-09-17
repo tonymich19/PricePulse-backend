@@ -18,6 +18,11 @@ Higher-precedence material wins. Surface a contradiction instead of guessing.
 The backend owns identity verification, credit policy, image admission, provider
 calls and the versioned HTTP contract. The app owns user experience, local domain
 and review. Keep all provider credentials and provider-specific types server-side.
+
+A Price Intelligence capability was approved at GATE 1 on 2026-09-16 but is **not
+implemented** and its implementation is gated by the M4 milestone gate. See
+`CLAUDE.md`, section "Backend ownership", for the split between implemented and
+approved-but-gated capabilities before assuming anything exists.
 Do not change the OpenAPI/schema files without an approved behavior decision and
 matching contract tests.
 

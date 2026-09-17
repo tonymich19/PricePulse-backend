@@ -24,11 +24,48 @@ two sources and ask for a decision before implementation.
 
 ## Backend ownership
 
-This repository owns authenticated receipt analysis, credits, provider invocation
-and the versioned HTTP boundary. `contracts/openapi.json` and
-`contracts/receipt-analysis-result.v1.schema.json` are the canonical wire-format
-sources. A cross-repository specification may describe behavior, but it does not
-replace or duplicate these contracts.
+### CURRENT_IMPLEMENTED_CAPABILITIES
+
+These exist in this repository today and are the only ones you may assume when
+reading or changing code:
+
+- authenticated receipt analysis;
+- credits;
+- provider invocation;
+- the existing versioned HTTP boundary.
+
+`contracts/openapi.json` and `contracts/receipt-analysis-result.v1.schema.json`
+are the canonical wire-format sources. A cross-repository specification may
+describe behavior, but it does not replace or duplicate these contracts.
+
+### APPROVED_BUT_GATED_CAPABILITIES
+
+Approved at GATE 1 on 2026-09-16 by ADR-013, ADR-014 and ADR-015 and the
+specification `price-intelligence-foundation-v1`, all under
+`../PricePulse/docs/product-development/`. **None of this is implemented.** Do not
+read the documents as description of existing code, and do not write code that
+assumes any of it exists:
+
+- Price Intelligence Foundation (`application/priceintelligence`);
+- the backend-owned canonical `PriceObservationStore`;
+- the MarketProduct catalog and its canonical `ProductKey`;
+- `Merchant`, `Store` and `PriceRegion`;
+- `UserTrackedProduct`.
+
+**The M4 milestone gate is satisfied:** the product owner closed Milestone 4 on
+2026-09-17 (`M4_GATE_PASS`), recorded in
+`../PricePulse/docs/product-development/roadmap.md`. **M5 implementation has not
+started** — no slice (S1, S1a, S1b or later) has begun. The capability stays gated
+slice by slice: each slice needs an audited detailed plan, its execution
+preconditions and an explicit authorization from the product owner. An approved
+ADR, specification or delivery sequence is not permission to implement. For S1a
+(`docs/superpowers/plans/2026-09-16-s1-market-text-identity.md`), one precondition
+is that the M4 closing documentation and the M5 design are present in the app
+repository's `origin/main`.
+
+Every price source investigated so far remains `COMMERCIAL_USE_NOT_VALIDATED`. A
+source in that state may never serve production data; commercial status is a
+fail-closed gate, and an absent value denies activation.
 
 OpenAI and other provider secrets remain server-only. Never move a credential,
 provider model identifier or provider response model into the mobile app.

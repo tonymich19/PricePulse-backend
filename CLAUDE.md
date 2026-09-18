@@ -32,7 +32,10 @@ reading or changing code:
 - authenticated receipt analysis;
 - credits;
 - provider invocation;
-- the existing versioned HTTP boundary.
+- the existing versioned HTTP boundary;
+- the pure M5 S1 identity primitives in `application/priceintelligence/identity`:
+  `MarketTextKey` (S1a) and `normalizePackageMeasure` (S1b). No persistence, HTTP
+  or adapter code uses them yet.
 
 `contracts/openapi.json` and `contracts/receipt-analysis-result.v1.schema.json`
 are the canonical wire-format sources. A cross-repository specification may
@@ -42,9 +45,9 @@ describe behavior, but it does not replace or duplicate these contracts.
 
 Approved at GATE 1 on 2026-09-16 by ADR-013, ADR-014 and ADR-015 and the
 specification `price-intelligence-foundation-v1`, all under
-`../PricePulse/docs/product-development/`. **None of this is implemented.** Do not
-read the documents as description of existing code, and do not write code that
-assumes any of it exists:
+`../PricePulse/docs/product-development/`. **Apart from the S1 primitives above,
+none of this is implemented.** Do not read the documents as description of existing
+code, and do not write code that assumes any of it exists:
 
 - Price Intelligence Foundation (`application/priceintelligence`);
 - the backend-owned canonical `PriceObservationStore`;
@@ -54,8 +57,11 @@ assumes any of it exists:
 
 **The M4 milestone gate is satisfied:** the product owner closed Milestone 4 on
 2026-09-17 (`M4_GATE_PASS`), recorded in
-`../PricePulse/docs/product-development/roadmap.md`. **M5 implementation has not
-started** — no slice (S1, S1a, S1b or later) has begun. The capability stays gated
+`../PricePulse/docs/product-development/roadmap.md`. **M5 implementation has
+started:** S1 (S1a and S1b) is complete, and F1 is resolved by ADR-016 (app local
+identity and market canonical identity are distinct; only `MarketTextKey ≡
+ProductNameMatchKey` parity is required). S2 (`ProductKey`) is ready for detailed
+planning; its implementation has not started. The capability stays gated
 slice by slice: each slice needs an audited detailed plan, its execution
 preconditions and an explicit authorization from the product owner. An approved
 ADR, specification or delivery sequence is not permission to implement. For S1a

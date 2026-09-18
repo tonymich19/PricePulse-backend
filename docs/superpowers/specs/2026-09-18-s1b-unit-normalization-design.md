@@ -397,6 +397,9 @@ No decision is open.
 - **F2 — «unit» naming collision** (§4.3). Resolved inside S1b by D9.
 - **F3 — The app delivery plan** (line 188: names and signature; «plano detalhado ainda não escrito»)
   needs a follow-up update after approval. Separate app-repository change.
+  **Resolution (2026-09-18): `F3 = RESOLVED`** by the M5 documentation reconciliation — the app
+  delivery plan §6 S1b now names `normalizePackageMeasure` / `NormalizedPackageMeasure`, records the
+  divergence from `normalizeUnit` (D1, D9) and points to this design and its plan.
 
 ## 15. Definition of done (S1b)
 

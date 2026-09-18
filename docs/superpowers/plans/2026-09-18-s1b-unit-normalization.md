@@ -30,7 +30,8 @@ S1b may not start until **all** hold:
 3. The test baseline of Task 0 is captured **before the first edit**.
 
 F1 (`FULL_TEXT_IDENTITY_PARITY = NOT_ESTABLISHED`) is **not** a precondition of S1b. It is a gate
-before the implementation of S2 (design §14).
+before the implementation of S2 (design §14). Resolved on 2026-09-18 by ADR-016
+(`F1 = RESOLVED_BY_ADR_016`; see design §14).
 
 ## Global constraints
 
@@ -339,7 +340,8 @@ verification line of the delivery plan. Expected: all green.
 
 Design §15. In short: design and plan approved; tests written first and green; full suite equal to the
 baseline plus the new tests; integrated through the normal PR flow with PO authorization. **Only then**
-S1 = `COMPLETE`. S2 becomes plannable; its implementation still waits for the F1 gate.
+S1 = `COMPLETE`. S2 becomes plannable; its implementation still waits for the F1 gate (resolved by
+ADR-016 on 2026-09-18).
 
 ## Risks
 

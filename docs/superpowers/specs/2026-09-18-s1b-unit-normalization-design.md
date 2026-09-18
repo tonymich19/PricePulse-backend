@@ -14,6 +14,7 @@ app repository `../PricePulse`:
 
 S1a (`MarketTextKey`) is `COMPLETE`. **S1 is complete only when S1a and S1b are both complete, and S2
 (`ProductKey`) stays blocked until then** — and, independently, until the F1 gate of §14 is resolved.
+(F1 resolved by ADR-016 on 2026-09-18; see §14.)
 
 ---
 
@@ -388,6 +389,11 @@ No decision is open.
   **does** block the implementation of S2 / `ProductKey`: S2 may not start until the product owner
   decides how full text identity parity is established or explicitly scoped out. Not corrected now; the
   app is not changed.
+  **Resolution (PO, 2026-09-18): `F1 = RESOLVED_BY_ADR_016`.** `FULL_TEXT_IDENTITY_PARITY =
+  NOT_REQUIRED_BY_DESIGN`; `MARKET_TEXT_KEY_PRIMITIVE_PARITY = ESTABLISHED` (S1a fixture). App local
+  identity and market canonical identity are distinct concepts — `../PricePulse/docs/product-development/adr/ADR-016-app-local-identity-vs-market-canonical-identity.md`.
+  S2 is ready for detailed planning; its implementation still needs an audited plan and PO
+  authorization.
 - **F2 — «unit» naming collision** (§4.3). Resolved inside S1b by D9.
 - **F3 — The app delivery plan** (line 188: names and signature; «plano detalhado ainda não escrito»)
   needs a follow-up update after approval. Separate app-repository change.
@@ -403,4 +409,4 @@ No decision is open.
 5. Integrated into backend `main` through the normal PR flow, with the PO's authorization for commit,
    push and PR.
 6. **Then** S1 = `COMPLETE` (S1a ∧ S1b). S2 becomes plannable, and its implementation still waits for
-   the F1 gate.
+   the F1 gate (resolved by ADR-016 on 2026-09-18; see §14).

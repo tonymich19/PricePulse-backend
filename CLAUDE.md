@@ -33,9 +33,10 @@ reading or changing code:
 - credits;
 - provider invocation;
 - the existing versioned HTTP boundary;
-- the pure M5 S1 identity primitives in `application/priceintelligence/identity`:
-  `MarketTextKey` (S1a) and `normalizePackageMeasure` (S1b). No persistence, HTTP
-  or adapter code uses them yet.
+- the pure M5 identity primitives in `application/priceintelligence/identity`:
+  `MarketTextKey` (S1a), `normalizePackageMeasure` (S1b), and `ProductKey` with
+  `Gtin`, `AttributeSignature`, `ProductIdentityLevel` and `ProductKeyResult` (S2).
+  No persistence, HTTP, serialization or adapter code uses them yet.
 
 `contracts/openapi.json` and `contracts/receipt-analysis-result.v1.schema.json`
 are the canonical wire-format sources. A cross-repository specification may
@@ -45,13 +46,15 @@ describe behavior, but it does not replace or duplicate these contracts.
 
 Approved at GATE 1 on 2026-09-16 by ADR-013, ADR-014 and ADR-015 and the
 specification `price-intelligence-foundation-v1`, all under
-`../PricePulse/docs/product-development/`. **Apart from the S1 primitives above,
+`../PricePulse/docs/product-development/`. **Apart from the identity primitives above,
 none of this is implemented.** Do not read the documents as description of existing
 code, and do not write code that assumes any of it exists:
 
 - Price Intelligence Foundation (`application/priceintelligence`);
 - the backend-owned canonical `PriceObservationStore`;
-- the MarketProduct catalog and its canonical `ProductKey`;
+- the MarketProduct catalog (the pure `ProductKey` value exists; no catalog,
+  `ProductKey` persistence or HTTP representation, and no resolution from the
+  app's local `Product` to a `ProductKey`, does);
 - `Merchant`, `Store` and `PriceRegion`;
 - `UserTrackedProduct`.
 
@@ -60,7 +63,8 @@ code, and do not write code that assumes any of it exists:
 `../PricePulse/docs/product-development/roadmap.md`. **M5 implementation has
 started:** S1 (S1a and S1b) is complete, and F1 is resolved by ADR-016 (app local
 identity and market canonical identity are distinct; only `MarketTextKey ≡
-ProductNameMatchKey` parity is required). S2 (`ProductKey`) is ready for detailed
+ProductNameMatchKey` parity is required). S2 (`ProductKey`) is complete (PR #9,
+merge `87182e5`). S3 (`Merchant`, `Store`, `PriceRegion`) is ready for detailed
 planning; its implementation has not started. The capability stays gated
 slice by slice: each slice needs an audited detailed plan, its execution
 preconditions and an explicit authorization from the product owner. An approved

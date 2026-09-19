@@ -21,8 +21,8 @@ and review. Keep all provider credentials and provider-specific types server-sid
 
 A Price Intelligence capability was approved at GATE 1 on 2026-09-16 and is
 **implemented only in part**. The M4 milestone gate was satisfied on 2026-09-17
-(`M4_GATE_PASS`); M5 implementation has **started** — S1 is complete and S2 has not
-started — and each remaining slice still needs an audited plan,
+(`M4_GATE_PASS`); M5 implementation has **started** — S1 and S2 are complete; S3 has an
+approved design and plan and its implementation has not started — and each remaining slice still needs an audited plan,
 its execution preconditions and explicit product-owner authorization. See
 `CLAUDE.md`, section "Backend ownership", for the split between implemented and
 approved-but-gated capabilities before assuming anything exists.

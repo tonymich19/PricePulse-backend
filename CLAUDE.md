@@ -64,8 +64,9 @@ code, and do not write code that assumes any of it exists:
 started:** S1 (S1a and S1b) is complete, and F1 is resolved by ADR-016 (app local
 identity and market canonical identity are distinct; only `MarketTextKey ≡
 ProductNameMatchKey` parity is required). S2 (`ProductKey`) is complete (PR #9,
-merge `87182e5`). S3 (`Merchant`, `Store`, `PriceRegion`) is ready for detailed
-planning; its implementation has not started. The capability stays gated
+merge `87182e5`). S3 (`Merchant`, `Store`, `PriceRegion`) has its design and
+detailed plan approved by the product owner (`APPROVED_BY_PO`, 2026-09-19) and is ready for
+implementation; its implementation has not started. The capability stays gated
 slice by slice: each slice needs an audited detailed plan, its execution
 preconditions and an explicit authorization from the product owner. An approved
 ADR, specification or delivery sequence is not permission to implement. For S1a
